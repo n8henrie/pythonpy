@@ -1,5 +1,7 @@
 # pythonpy
 
+**UPDATE 20220225:** Please consider using <https://github.com/edk0/spy/> instead, as it seems much better maintained, organized, and all-around like a better choice than using this probject.
+
 Forked from `MatthieuBizien/pythonpy`
 
 ```console
