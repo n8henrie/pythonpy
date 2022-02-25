@@ -1,39 +1,37 @@
-from __future__ import (
-    absolute_import,
-    division,
-    print_function,
-    unicode_literals,
-)
+import argparse
+import importlib
+import inspect
+import json
+import logging
+import pydoc
+import re
+import sys
+import traceback
+from itertools import islice
+from signal import SIG_DFL, signal, SIGPIPE
+from typing import Iterable
 
-from signal import SIG_DFL, SIGPIPE, signal
+from . import __version__
 
 signal(SIGPIPE, SIG_DFL)
 
-import argparse
-import json
-import re
-import sys
-from typing import Iterable
+__version_info__ = f"""Pythonpy {__version__}
+{sys.version}
+Python {sys.version.split(" ")[0]}"""
 
-try:
-    from . import __version__
-except (ImportError, ValueError, SystemError):
-    __version__ = "???"  # NOQA
-__version_info__ = """Pythonpy %s
-Python %s""" % (
-    __version__,
-    sys.version.split(" ")[0],
-)
+logging.basicConfig()
+LOGGER = logging.getLogger()
 
 
 def import_matches(query, prefix=""):
     matches = set(re.findall(r"(%s[a-zA-Z_][a-zA-Z0-9_]*)\.?" % prefix, query))
     for module_name in matches:
         try:
-            module = __import__(module_name)
+            module = importlib.import_module(module_name)
             globals()[module_name] = module
             import_matches(query, prefix="%s." % module_name)
         except ImportError as e:
+            LOGGER.debug(f"Unable to import {module_name} due to {e}")
             pass
 
 
@@ -47,13 +45,11 @@ def current_list(input):
 
 
 def inspect_source(obj):
-    import inspect
-    import pydoc
 
     try:
         pydoc.pager("".join(inspect.getsourcelines(obj)[0]))
         return None
-    except:
+    except Exception:
         return help(obj)
 
 
@@ -149,9 +145,10 @@ try:
                 else:
                     if sum(1 for x in sys.stdin) > 0:
                         sys.stderr.write(
-                            """Hint: --ji requies oneline json strings. Use py 'json.load(sys.stdin)'
-    if you have a multi-line json file and not a file with multiple lines of json.
-    """
+                            "Hint: --ji requies oneline json strings. Use py "
+                            "'json.load(sys.stdin)' if\n"
+                            "you have a multi-line json file and not a file "
+                            "with multiple lines of json."
                         )
                     raise ex
 
@@ -167,21 +164,16 @@ try:
             final_atom = current_list(args.expression.rstrip("?"))[-1]
             first_atom = current_list(args.expression.lstrip("?"))[0]
             if args.expression.startswith("??"):
-                import inspect
-
                 args.expression = "inspect_source(%s)" % first_atom
             elif args.expression.endswith("??"):
-                import inspect
-
                 args.expression = "inspect_source(%s)" % final_atom
             elif args.expression.startswith("?"):
                 args.expression = "help(%s)" % first_atom
             else:
                 args.expression = "help(%s)" % final_atom
             if args.lines_of_stdin:
-                from itertools import islice
-
                 stdin = islice(stdin, 1)
+
     if args.pre_cmd:
         args.pre_cmd = args.pre_cmd.replace("`", "'")
     if args.post_cmd:
@@ -195,7 +187,7 @@ try:
     def safe_eval(text, x):
         try:
             return eval(text)
-        except:
+        except Exception:
             return None
 
     if args.lines_of_stdin:
@@ -209,7 +201,7 @@ try:
         else:
             result = (x for x in stdin if eval(args.expression))
     elif args.list_of_stdin:
-        l = list(stdin)
+        list_input = list(stdin)
         result = eval(args.expression)
     else:
         result = eval(args.expression)
@@ -246,8 +238,7 @@ try:
 
     if args.post_cmd:
         exec(args.post_cmd)
-except Exception as ex:
-    import traceback
+except Exception:
 
     print((traceback.format_exc()))
 
